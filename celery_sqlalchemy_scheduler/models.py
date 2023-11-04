@@ -120,7 +120,7 @@ class CrontabSchedule(ModelBase, ModelMixin):
         }
         if schedule.tz:
             spec.update({
-                'timezone': schedule.tz.zone
+                'timezone': schedule.tz.key
             })
         model = session.query(CrontabSchedule).filter_by(**spec).first()
         if not model:
@@ -197,15 +197,26 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
         :param connection: the Connection being used
         :param target: the mapped instance being persisted
         """
-        s = connection.execute(select([PeriodicTaskChanged]).
-                               where(PeriodicTaskChanged.id == 1).limit(1))
-        if not s:
-            s = connection.execute(insert(PeriodicTaskChanged),
-                                   last_update=dt.datetime.now())
+        from sqlalchemy.sql import text
+
+        current_time = dt.datetime.now()
+
+        # Check if the record exists
+        query = text("SELECT id FROM celery_periodic_task_changed LIMIT 1")
+        result = connection.execute(query)
+
+        if result.fetchone() is None:
+            # If no record found, perform an insert
+            connection.execute(
+                text("INSERT INTO celery_periodic_task_changed (last_update) VALUES (:time)"),
+                {"time": current_time}
+            )
         else:
-            s = connection.execute(update(PeriodicTaskChanged).
-                                   where(PeriodicTaskChanged.id == 1).
-                                   values(last_update=dt.datetime.now()))
+            # If the record exists, perform an update
+            connection.execute(
+                text("UPDATE celery_periodic_task_changed SET last_update = :time"),
+                {"time": current_time}
+            )
 
     @classmethod
     def last_change(cls, session):
