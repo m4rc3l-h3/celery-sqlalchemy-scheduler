@@ -230,7 +230,7 @@ You can use the `enabled` flag to temporarily disable a periodic task:
     >>> session.commit()
 
 > Note: If you want to delete `PeriodicTask`, don't use `.delete()` method on a query
-> such as `db.session.query(PeriodicTask).filter(PeriodicTask.id == task_id).delete()`.
+> such as `db.session.query(PeriodicTask).filter(PeriodicTask.instance_id == task_id).delete()`.
 > Because it doesn't trigger the `after_delete` event listener and result in Error.
 > The correct deletion method is using session to delete `PeriodicTask` object.
 

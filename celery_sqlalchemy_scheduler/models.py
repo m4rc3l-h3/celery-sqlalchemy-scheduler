@@ -46,7 +46,7 @@ class IntervalSchedule(ModelBase, ModelMixin):
     SECONDS = 'seconds'
     MICROSECONDS = 'microseconds'
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    instance_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     every = sa.Column(sa.Integer, nullable=False)
     period = sa.Column(sa.String(24))
@@ -84,7 +84,7 @@ class CrontabSchedule(ModelBase, ModelMixin):
     __tablename__ = 'celery_crontab_schedule'
     __table_args__ = {'sqlite_autoincrement': True}
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    instance_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     minute = sa.Column(sa.String(60 * 4), default='*')
     hour = sa.Column(sa.String(24 * 4), default='*')
     day_of_week = sa.Column(sa.String(64), default='*')
@@ -134,7 +134,7 @@ class SolarSchedule(ModelBase, ModelMixin):
     __tablename__ = 'celery_solar_schedule'
     __table_args__ = {'sqlite_autoincrement': True}
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    instance_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     event = sa.Column(sa.String(24))
     latitude = sa.Column(sa.Float())
@@ -176,7 +176,7 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
 
     __tablename__ = 'celery_periodic_task_changed'
 
-    id = sa.Column(sa.Integer, primary_key=True)
+    instance_id = sa.Column(sa.Integer, primary_key=True)
     last_update = sa.Column(
         sa.DateTime(timezone=True), nullable=False, default=dt.datetime.now)
 
@@ -202,7 +202,7 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
         current_time = dt.datetime.now()
 
         # Check if the record exists
-        query = text("SELECT id FROM celery_periodic_task_changed LIMIT 1")
+        query = text("SELECT instance_id FROM celery_periodic_task_changed LIMIT 1")
         result = connection.execute(query)
 
         if result.fetchone() is None:
@@ -230,7 +230,7 @@ class PeriodicTask(ModelBase, ModelMixin):
     __tablename__ = 'celery_periodic_task'
     __table_args__ = {'sqlite_autoincrement': True}
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    instance_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     # name
     name = sa.Column(sa.String(255), unique=True)
     # task name
@@ -241,21 +241,21 @@ class PeriodicTask(ModelBase, ModelMixin):
     interval = relationship(
         IntervalSchedule,
         uselist=False,
-        primaryjoin=foreign(interval_id) == remote(IntervalSchedule.id)
+        primaryjoin=foreign(interval_id) == remote(IntervalSchedule.instance_id)
     )
 
     crontab_id = sa.Column(sa.Integer)
     crontab = relationship(
         CrontabSchedule,
         uselist=False,
-        primaryjoin=foreign(crontab_id) == remote(CrontabSchedule.id)
+        primaryjoin=foreign(crontab_id) == remote(CrontabSchedule.instance_id)
     )
 
     solar_id = sa.Column(sa.Integer)
     solar = relationship(
         SolarSchedule,
         uselist=False,
-        primaryjoin=foreign(solar_id) == remote(SolarSchedule.id)
+        primaryjoin=foreign(solar_id) == remote(SolarSchedule.instance_id)
     )
 
     args = sa.Column(sa.Text(), default='[]')

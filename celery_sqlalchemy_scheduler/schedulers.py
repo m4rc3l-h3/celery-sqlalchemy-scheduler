@@ -117,7 +117,7 @@ class ModelEntry(ScheduleEntry):
                 session.add(model)
                 session.commit()
 
-            #     obj = session.query(PeriodicTask).get(model.id)
+            #     obj = session.query(PeriodicTask).get(model.instance_id)
             #     obj.enable = model.enabled
             #     session.add(obj)
             #     session.commit()
@@ -176,7 +176,7 @@ class ModelEntry(ScheduleEntry):
         with session_cleanup(session):
             # Object may not be synchronized, so only
             # change the fields we care about.
-            obj = session.query(PeriodicTask).get(self.model.id)
+            obj = session.query(PeriodicTask).get(self.model.instance_id)
 
             for field in self.save_fields:
                 setattr(obj, field, getattr(self.model, field))
@@ -244,7 +244,7 @@ class ModelEntry(ScheduleEntry):
         model_schedule, model_field = cls.to_model_schedule(session, schedule)
         entry.update(
             # the model_id which to relationship
-            {model_field + '_id': model_schedule.id},
+            {model_field + '_id': model_schedule.instance_id},
             args=dumps(args or []),
             kwargs=dumps(kwargs or {}),
             **cls._unpack_options(**options or {})
