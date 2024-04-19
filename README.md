@@ -181,8 +181,8 @@ is required:
     ...     interval=schedule,                  # we created this above.
     ...     name='Importing contacts',          # simply describes this periodic task.
     ...     task='proj.tasks.import_contacts',  # name of task.
-    ...     args=json.dumps(['arg1', 'arg2']),
-    ...     kwargs=json.dumps({
+    ...     task_args=json.dumps(['arg1', 'arg2']),
+    ...     task_kwargs=json.dumps({
     ...        'be_careful': True,
     ...     }),
     ...     expires=datetime.utcnow() + timedelta(seconds=30)
