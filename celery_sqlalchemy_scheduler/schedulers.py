@@ -73,8 +73,8 @@ class ModelEntry(ScheduleEntry):
             self._disable(model)
 
         try:
-            self.args = loads(model.args or '[]')
-            self.kwargs = loads(model.kwargs or '{}')
+            self.task_args = loads(model.task_args or '[]')
+            self.task_kwargs = loads(model.task_kwargs or '{}')
         except ValueError as exc:
             logger.exception(
                 'Removing schedule %s for argument deseralization error: %r',
@@ -230,7 +230,7 @@ class ModelEntry(ScheduleEntry):
 
     @classmethod
     def _unpack_fields(cls, session, schedule,
-                       args=None, kwargs=None, relative=None, options=None,
+                       task_args=None, task_kwargs=None, relative=None, options=None,
                        **entry):
         """
 
@@ -245,8 +245,8 @@ class ModelEntry(ScheduleEntry):
         entry.update(
             # the model_id which to relationship
             {model_field + '_id': model_schedule.instance_id},
-            args=dumps(args or []),
-            kwargs=dumps(kwargs or {}),
+            task_args=dumps(task_args or []),
+            task_kwargs=dumps(task_kwargs or {}),
             **cls._unpack_options(**options or {})
         )
         return entry
@@ -273,8 +273,8 @@ class ModelEntry(ScheduleEntry):
 
     def __repr__(self):
         return '<ModelEntry: {0} {1}(*{2}, **{3}) {4}>'.format(
-            safe_str(self.name), self.task, safe_repr(self.args),
-            safe_repr(self.kwargs), self.schedule,
+            safe_str(self.name), self.task, safe_repr(self.task_args),
+            safe_repr(self.task_kwargs), self.schedule,
         )
 
 

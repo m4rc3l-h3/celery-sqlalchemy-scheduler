@@ -258,8 +258,8 @@ class PeriodicTask(ModelBase, ModelMixin):
         primaryjoin=foreign(solar_id) == remote(SolarSchedule.instance_id)
     )
 
-    args = sa.Column(sa.Text(), default='[]')
-    kwargs = sa.Column(sa.Text(), default='{}')
+    task_args = sa.Column(sa.Text(), default='[]')
+    task_kwargs = sa.Column(sa.Text(), default='{}')
     # queue for celery
     queue = sa.Column(sa.String(255))
     # exchange for celery
