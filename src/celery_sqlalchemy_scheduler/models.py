@@ -1,20 +1,16 @@
-# coding=utf-8
-
 import datetime as dt
+
 import pytz
-
 import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.event import listen
-from sqlalchemy.orm import relationship, foreign, remote
-from sqlalchemy.sql import select, insert, update
-
 from celery import schedules
 from celery.utils.log import get_logger
+from sqlalchemy import func
+from sqlalchemy.event import listen
+from sqlalchemy.orm import foreign, relationship, remote
+from sqlalchemy.sql import insert, select, update
 
-from .tzcrontab import TzAwareCrontab
-from .session import ModelBase
-
+from celery_sqlalchemy_scheduler.session import ModelBase
+from celery_sqlalchemy_scheduler.tzcrontab import TzAwareCrontab
 
 logger = get_logger('celery_sqlalchemy_scheduler.models')
 
@@ -25,7 +21,6 @@ def cronexp(field):
 
 
 class ModelMixin(object):
-
     @classmethod
     def create(cls, **kw):
         return cls(**kw)
@@ -67,8 +62,7 @@ class IntervalSchedule(ModelBase, ModelMixin):
     @classmethod
     def from_schedule(cls, session, schedule, period=SECONDS):
         every = max(schedule.run_every.total_seconds(), 0)
-        model = session.query(IntervalSchedule).filter_by(
-            every=every, period=period).first()
+        model = session.query(IntervalSchedule).filter_by(every=every, period=period).first()
         if not model:
             model = cls(every=every, period=period)
             session.add(model)
@@ -94,19 +88,23 @@ class CrontabSchedule(ModelBase, ModelMixin):
 
     def __repr__(self):
         return '{0} {1} {2} {3} {4} (m/h/d/dM/MY) {5}'.format(
-            cronexp(self.minute), cronexp(self.hour),
-            cronexp(self.day_of_week), cronexp(self.day_of_month),
-            cronexp(self.month_of_year), str(self.timezone)
+            cronexp(self.minute),
+            cronexp(self.hour),
+            cronexp(self.day_of_week),
+            cronexp(self.day_of_month),
+            cronexp(self.month_of_year),
+            str(self.timezone),
         )
 
     @property
     def schedule(self):
         return TzAwareCrontab(
             minute=self.minute,
-            hour=self.hour, day_of_week=self.day_of_week,
+            hour=self.hour,
+            day_of_week=self.day_of_week,
             day_of_month=self.day_of_month,
             month_of_year=self.month_of_year,
-            tz=pytz.timezone(self.timezone)
+            tz=pytz.timezone(self.timezone),
         )
 
     @classmethod
@@ -119,9 +117,7 @@ class CrontabSchedule(ModelBase, ModelMixin):
             'month_of_year': schedule._orig_month_of_year,
         }
         if schedule.tz:
-            spec.update({
-                'timezone': schedule.tz.key
-            })
+            spec.update({'timezone': schedule.tz.key})
         model = session.query(CrontabSchedule).filter_by(**spec).first()
         if not model:
             model = cls(**spec)
@@ -142,20 +138,11 @@ class SolarSchedule(ModelBase, ModelMixin):
 
     @property
     def schedule(self):
-        return schedules.solar(
-            self.event,
-            self.latitude,
-            self.longitude,
-            nowfun=dt.datetime.now
-        )
+        return schedules.solar(self.event, self.latitude, self.longitude, nowfun=dt.datetime.now)
 
     @classmethod
     def from_schedule(cls, session, schedule):
-        spec = {
-            'event': schedule.event,
-            'latitude': schedule.lat,
-            'longitude': schedule.lon
-        }
+        spec = {'event': schedule.event, 'latitude': schedule.lat, 'longitude': schedule.lon}
         model = session.query(SolarSchedule).filter_by(**spec).first()
         if not model:
             model = cls(**spec)
@@ -164,11 +151,7 @@ class SolarSchedule(ModelBase, ModelMixin):
         return model
 
     def __repr__(self):
-        return '{0} ({1}, {2})'.format(
-            self.event,
-            self.latitude,
-            self.longitude
-        )
+        return '{0} ({1}, {2})'.format(self.event, self.latitude, self.longitude)
 
 
 class PeriodicTaskChanged(ModelBase, ModelMixin):
@@ -177,8 +160,7 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
     __tablename__ = 'celery_periodic_task_changed'
 
     instance_id = sa.Column(sa.Integer, primary_key=True)
-    last_update = sa.Column(
-        sa.DateTime(timezone=True), nullable=False, default=dt.datetime.now)
+    last_update = sa.Column(sa.DateTime(timezone=True), nullable=False, default=dt.datetime.now)
 
     @classmethod
     def changed(cls, mapper, connection, target):
@@ -202,20 +184,20 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
         current_time = dt.datetime.now()
 
         # Check if the record exists
-        query = text("SELECT instance_id FROM celery_periodic_task_changed LIMIT 1")
+        query = text('SELECT instance_id FROM celery_periodic_task_changed LIMIT 1')
         result = connection.execute(query)
 
         if result.fetchone() is None:
             # If no record found, perform an insert
             connection.execute(
-                text("INSERT INTO celery_periodic_task_changed (last_update) VALUES (:time)"),
-                {"time": current_time}
+                text('INSERT INTO celery_periodic_task_changed (last_update) VALUES (:time)'),
+                {'time': current_time},
             )
         else:
             # If the record exists, perform an update
             connection.execute(
-                text("UPDATE celery_periodic_task_changed SET last_update = :time"),
-                {"time": current_time}
+                text('UPDATE celery_periodic_task_changed SET last_update = :time'),
+                {'time': current_time},
             )
 
     @classmethod
@@ -226,7 +208,6 @@ class PeriodicTaskChanged(ModelBase, ModelMixin):
 
 
 class PeriodicTask(ModelBase, ModelMixin):
-
     __tablename__ = 'celery_periodic_task'
     __table_args__ = {'sqlite_autoincrement': True}
 
@@ -241,21 +222,21 @@ class PeriodicTask(ModelBase, ModelMixin):
     interval = relationship(
         IntervalSchedule,
         uselist=False,
-        primaryjoin=foreign(interval_id) == remote(IntervalSchedule.instance_id)
+        primaryjoin=foreign(interval_id) == remote(IntervalSchedule.instance_id),
     )
 
     crontab_id = sa.Column(sa.Integer)
     crontab = relationship(
         CrontabSchedule,
         uselist=False,
-        primaryjoin=foreign(crontab_id) == remote(CrontabSchedule.instance_id)
+        primaryjoin=foreign(crontab_id) == remote(CrontabSchedule.instance_id),
     )
 
     solar_id = sa.Column(sa.Integer)
     solar = relationship(
         SolarSchedule,
         uselist=False,
-        primaryjoin=foreign(solar_id) == remote(SolarSchedule.instance_id)
+        primaryjoin=foreign(solar_id) == remote(SolarSchedule.instance_id),
     )
 
     task_args = sa.Column(sa.Text(), default='[]')
@@ -276,8 +257,7 @@ class PeriodicTask(ModelBase, ModelMixin):
     last_run_at = sa.Column(sa.DateTime(timezone=True))
     total_run_count = sa.Column(sa.Integer(), nullable=False, default=0)
     # 修改时间
-    date_changed = sa.Column(sa.DateTime(timezone=True),
-                             default=func.now(), onupdate=func.now())
+    date_changed = sa.Column(sa.DateTime(timezone=True), default=func.now(), onupdate=func.now())
     description = sa.Column(sa.Text(), default='')
 
     no_changes = False

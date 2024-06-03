@@ -1,25 +1,23 @@
-# coding=utf-8
-
-import logging
 import datetime as dt
+import logging
 from multiprocessing.util import Finalize
 
 import sqlalchemy
-from celery import current_app
-from celery import schedules
-from celery.beat import Scheduler, ScheduleEntry
+from celery import current_app, schedules
+from celery.beat import ScheduleEntry, Scheduler
 from celery.utils.log import get_logger
 from celery.utils.time import maybe_make_aware
 from kombu.utils.encoding import safe_repr, safe_str
 from kombu.utils.json import dumps, loads
 
-from .session import session_cleanup
-from .session import SessionManager
 from .models import (
-    PeriodicTask, PeriodicTaskChanged,
-    CrontabSchedule, IntervalSchedule,
+    CrontabSchedule,
+    IntervalSchedule,
+    PeriodicTask,
+    PeriodicTaskChanged,
     SolarSchedule,
 )
+from .session import SessionManager, session_cleanup
 
 # This scheduler must wake up more frequently than the
 # regular of 5 minutes because it needs to take external
@@ -78,13 +76,13 @@ class ModelEntry(ScheduleEntry):
         except ValueError as exc:
             logger.exception(
                 'Removing schedule %s for argument deseralization error: %r',
-                self.name, exc,
+                self.name,
+                exc,
             )
             self._disable(model)
 
         self.options = {}
-        for option in ['queue', 'exchange', 'routing_key', 'expires',
-                       'priority']:
+        for option in ['queue', 'exchange', 'routing_key', 'expires', 'priority']:
             value = getattr(model, option)
             if value is None:
                 continue
@@ -130,8 +128,7 @@ class ModelEntry(ScheduleEntry):
         # START DATE: only run after the `start_time`, if one exists.
         if self.model.start_time is not None:
             now = maybe_make_aware(self._default_now())
-            start_time = self.model.start_time.replace(
-                tzinfo=self.app.timezone)
+            start_time = self.model.start_time.replace(tzinfo=self.app.timezone)
             if now < start_time:
                 # The datetime is before the start date - don't run.
                 _, delay = self.schedule.is_due(self.last_run_at)
@@ -139,12 +136,11 @@ class ModelEntry(ScheduleEntry):
                 return schedules.schedstate(False, delay)
 
         # ONE OFF TASK: Disable one off tasks after they've ran once
-        if self.model.one_off and self.model.enabled \
-                and self.model.total_run_count > 0:
+        if self.model.one_off and self.model.enabled and self.model.total_run_count > 0:
             self.model.enabled = False  # disable
             self.model.total_run_count = 0  # Reset
             self.model.no_changes = False  # Mark the model entry as changed
-            save_fields = ('enabled',)   # the additional fields to save
+            save_fields = ('enabled',)  # the additional fields to save
             self.save(save_fields)
 
             return schedules.schedstate(False, None)  # Don't recheck
@@ -165,6 +161,7 @@ class ModelEntry(ScheduleEntry):
         self.model.total_run_count += 1
         self.model.no_changes = True
         return self.__class__(self.model, Session=self.Session)
+
     next = __next__  # for 2to3
 
     def save(self, fields=tuple()):
@@ -194,8 +191,7 @@ class ModelEntry(ScheduleEntry):
                 # TODO:
                 model_schedule = model_type.from_schedule(session, schedule)
                 return model_schedule, model_field
-        raise ValueError(
-            'Cannot convert schedule type {0!r} to model'.format(schedule))
+        raise ValueError('Cannot convert schedule type {0!r} to model'.format(schedule))
 
     @classmethod
     def from_entry(cls, name, Session, app=None, **entry):
@@ -210,8 +206,7 @@ class ModelEntry(ScheduleEntry):
         """
         session = Session()
         with session_cleanup(session):
-            periodic_task = session.query(
-                PeriodicTask).filter_by(name=name).first()
+            periodic_task = session.query(PeriodicTask).filter_by(name=name).first()
             if not periodic_task:
                 periodic_task = PeriodicTask(name=name)
             temp = cls._unpack_fields(session, **entry)
@@ -229,9 +224,16 @@ class ModelEntry(ScheduleEntry):
             return res
 
     @classmethod
-    def _unpack_fields(cls, session, schedule,
-                       task_args=None, task_kwargs=None, relative=None, options=None,
-                       **entry):
+    def _unpack_fields(
+        cls,
+        session,
+        schedule,
+        task_args=None,
+        task_kwargs=None,
+        relative=None,
+        options=None,
+        **entry,
+    ):
         """
 
         **entry sample:
@@ -247,13 +249,21 @@ class ModelEntry(ScheduleEntry):
             {model_field + '_id': model_schedule.instance_id},
             task_args=dumps(task_args or []),
             task_kwargs=dumps(task_kwargs or {}),
-            **cls._unpack_options(**options or {})
+            **cls._unpack_options(**options or {}),
         )
         return entry
 
     @classmethod
-    def _unpack_options(cls, queue=None, exchange=None, routing_key=None,
-                        priority=None, one_off=None, expires=None, **kwargs):
+    def _unpack_options(
+        cls,
+        queue=None,
+        exchange=None,
+        routing_key=None,
+        priority=None,
+        one_off=None,
+        expires=None,
+        **kwargs,
+    ):
         data = {
             'queue': queue,
             'exchange': exchange,
@@ -273,13 +283,15 @@ class ModelEntry(ScheduleEntry):
 
     def __repr__(self):
         return '<ModelEntry: {0} {1}(*{2}, **{3}) {4}>'.format(
-            safe_str(self.name), self.task, safe_repr(self.task_args),
-            safe_repr(self.task_kwargs), self.schedule,
+            safe_str(self.name),
+            self.task,
+            safe_repr(self.task_args),
+            safe_repr(self.task_kwargs),
+            self.schedule,
         )
 
 
 class DatabaseScheduler(Scheduler):
-
     Entry = ModelEntry
     Model = PeriodicTask
     Changes = PeriodicTaskChanged
@@ -292,17 +304,18 @@ class DatabaseScheduler(Scheduler):
     def __init__(self, *args, **kwargs):
         """Initialize the database scheduler."""
         self.app = kwargs['app']
-        self.dburi = kwargs.get('dburi') or self.app.conf.get(
-            'beat_dburi') or DEFAULT_BEAT_DBURI
+        self.dburi = kwargs.get('dburi') or self.app.conf.get('beat_dburi') or DEFAULT_BEAT_DBURI
         self.engine, self.Session = session_manager.create_session(self.dburi)
         session_manager.prepare_models(self.engine)
 
         self._dirty = set()
         Scheduler.__init__(self, *args, **kwargs)
         self._finalize = Finalize(self, self.sync, exitpriority=5)
-        self.max_interval = (kwargs.get('max_interval') or
-                             self.app.conf.beat_max_loop_interval or
-                             DEFAULT_MAX_INTERVAL)
+        self.max_interval = (
+            kwargs.get('max_interval')
+            or self.app.conf.beat_max_loop_interval
+            or DEFAULT_MAX_INTERVAL
+        )
 
     def setup_schedule(self):
         """override"""
@@ -320,10 +333,9 @@ class DatabaseScheduler(Scheduler):
             s = {}
             for model in models:
                 try:
-                    s[model.name] = self.Entry(model,
-                                               app=self.app,
-                                               Session=self.Session,
-                                               session=session)
+                    s[model.name] = self.Entry(
+                        model, app=self.app, Session=self.Session, session=session
+                    )
                 except ValueError:
                     pass
             return s
@@ -367,10 +379,9 @@ class DatabaseScheduler(Scheduler):
                 name = self._dirty.pop()
                 try:
                     self.schedule[name].save()  # save to database
-                    logger.debug(
-                        '{name} save to database'.format(name=name))
+                    logger.debug('{name} save to database'.format(name=name))
                     _tried.add(name)
-                except (KeyError) as exc:
+                except KeyError as exc:
                     logger.error(exc)
                     _failed.add(name)
         except sqlalchemy.exc.IntegrityError as exc:
@@ -389,8 +400,8 @@ class DatabaseScheduler(Scheduler):
             #  'options': {'expires': 43200}}
             try:
                 entry = self.Entry.from_entry(
-                    name, Session=self.Session, app=self.app,
-                    **entry_fields)
+                    name, Session=self.Session, app=self.app, **entry_fields
+                )
                 if entry.model.enabled:
                     s[name] = entry
             except Exception as exc:
@@ -403,7 +414,8 @@ class DatabaseScheduler(Scheduler):
         entries = {}
         if self.app.conf.result_expires:
             entries.setdefault(
-                'celery.backend_cleanup', {
+                'celery.backend_cleanup',
+                {
                     'task': 'celery.backend_cleanup',
                     'schedule': schedules.crontab('0', '4', '*'),
                     'options': {'expires': 12 * 3600},
@@ -437,8 +449,9 @@ class DatabaseScheduler(Scheduler):
                 self._heap = []
                 self._heap_invalidated = True
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug('Current schedule:\n%s', '\n'.join(
-                    repr(entry) for entry in self._schedule.values()),
+                logger.debug(
+                    'Current schedule:\n%s',
+                    '\n'.join(repr(entry) for entry in self._schedule.values()),
                 )
         # logger.debug(self._schedule)
         return self._schedule

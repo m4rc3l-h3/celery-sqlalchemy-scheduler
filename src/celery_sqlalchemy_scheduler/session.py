@@ -1,14 +1,11 @@
-# coding=utf-8
 """SQLAlchemy session."""
 
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-
 from kombu.utils.compat import register_after_fork
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
 
 ModelBase = declarative_base()
 
