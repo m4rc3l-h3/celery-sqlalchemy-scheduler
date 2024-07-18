@@ -35,7 +35,7 @@ class ModelMixin(object):
 class IntervalSchedule(ModelBase, ModelMixin):
     __tablename__ = 'celery_interval_schedule'
     __table_args__ = (
-        UniqueConstraint('every', 'period', name='uix_1'),
+        UniqueConstraint('every', 'period', name='uix_is'),
         {'sqlite_autoincrement': True},
     )
 
@@ -88,7 +88,7 @@ class CrontabSchedule(ModelBase, ModelMixin):
             'day_of_month',
             'month_of_year',
             'timezone',
-            name='uix_1',
+            name='uix_cs',
         ),
         {'sqlite_autoincrement': True},
     )
