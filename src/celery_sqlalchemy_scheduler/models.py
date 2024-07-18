@@ -7,6 +7,7 @@ from celery.utils.log import get_logger
 from sqlalchemy import func
 from sqlalchemy.event import listen
 from sqlalchemy.orm import foreign, relationship, remote
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql import insert, select, update
 
 from celery_sqlalchemy_scheduler.session import ModelBase
@@ -33,7 +34,10 @@ class ModelMixin(object):
 
 class IntervalSchedule(ModelBase, ModelMixin):
     __tablename__ = 'celery_interval_schedule'
-    __table_args__ = {'sqlite_autoincrement': True}
+    __table_args__ = (
+        UniqueConstraint('every', 'period', name='uix_1'),
+        {'sqlite_autoincrement': True},
+    )
 
     DAYS = 'days'
     HOURS = 'hours'
@@ -76,7 +80,18 @@ class IntervalSchedule(ModelBase, ModelMixin):
 
 class CrontabSchedule(ModelBase, ModelMixin):
     __tablename__ = 'celery_crontab_schedule'
-    __table_args__ = {'sqlite_autoincrement': True}
+    __table_args__ = (
+        UniqueConstraint(
+            'minute',
+            'hour',
+            'day_of_week',
+            'day_of_month',
+            'month_of_year',
+            'timezone',
+            name='uix_1',
+        ),
+        {'sqlite_autoincrement': True},
+    )
 
     instance_id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     minute = sa.Column(sa.String(60 * 4), default='*')
