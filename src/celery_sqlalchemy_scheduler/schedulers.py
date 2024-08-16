@@ -345,7 +345,7 @@ class DatabaseScheduler(Scheduler):
         with session_cleanup(session):
             changes = session.query(self.Changes).get(1)
             if not changes:
-                changes = self.Changes(id=1)
+                changes = self.Changes(instance_id=1)
                 session.add(changes)
                 session.commit()
                 return False
