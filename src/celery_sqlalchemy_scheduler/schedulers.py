@@ -228,8 +228,8 @@ class ModelEntry(ScheduleEntry):
         cls,
         session,
         schedule,
-        task_args=None,
-        task_kwargs=None,
+        args=None,
+        kwargs=None,
         relative=None,
         options=None,
         **entry,
@@ -247,8 +247,8 @@ class ModelEntry(ScheduleEntry):
         entry.update(
             # the model_id which to relationship
             {model_field + '_id': model_schedule.instance_id},
-            task_args=dumps(task_args or []),
-            task_kwargs=dumps(task_kwargs or {}),
+            args=dumps(args or []),
+            kwargs=dumps(kwargs or {}),
             **cls._unpack_options(**options or {}),
         )
         return entry
@@ -285,8 +285,8 @@ class ModelEntry(ScheduleEntry):
         return '<ModelEntry: {0} {1}(*{2}, **{3}) {4}>'.format(
             safe_str(self.name),
             self.task,
-            safe_repr(self.task_args),
-            safe_repr(self.task_kwargs),
+            safe_repr(self.args),
+            safe_repr(self.kwargs),
             self.schedule,
         )
 
