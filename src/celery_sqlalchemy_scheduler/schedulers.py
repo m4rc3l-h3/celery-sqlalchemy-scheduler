@@ -71,8 +71,8 @@ class ModelEntry(ScheduleEntry):
             self._disable(model)
 
         try:
-            self.task_args = loads(model.task_args or '[]')
-            self.task_kwargs = loads(model.task_kwargs or '{}')
+            self.args = loads(model.task_args or '[]')
+            self.kwargs = loads(model.task_kwargs or '{}')
         except ValueError as exc:
             logger.exception(
                 'Removing schedule %s for argument deseralization error: %r',
